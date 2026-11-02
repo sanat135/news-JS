@@ -1,46 +1,42 @@
+import { Endpoint, HttpMethod } from '../../types/api';
+import type { ApiResponse, Callback, QueryOptions, Validator } from '../../types/api';
+import { isApiError } from '../../utils/validators';
+
 class Loader {
-    constructor(baseLink, options) {
-        this.baseLink = baseLink;
-        this.options = options;
+  private readonly baseLink: string;
+  private readonly options: QueryOptions;
+
+  public constructor(baseLink: string, options: QueryOptions) {
+    this.baseLink = baseLink.endsWith('/') ? baseLink : `${baseLink}/`;
+    this.options = { ...options };
+  }
+
+  protected async getResp<T extends ApiResponse>(
+    endpoint: Endpoint,
+    validate: Validator<T>,
+    callback: Callback<T>,
+    options: QueryOptions = {},
+  ): Promise<void> {
+    const response: Response = await fetch(this.makeUrl(endpoint, options), {
+      method: HttpMethod.Get,
+    });
+    if (!response.ok) {
+      throw new Error(`News request failed (HTTP ${response.status})`);
     }
+    const data: unknown = await response.json();
+    if (isApiError(data)) throw new Error(data.message);
+    if (!validate(data)) throw new Error('Unexpected API response');
+    callback(data);
+  }
 
-    getResp(
-        { endpoint, options = {} },
-        callback = () => {
-            console.error('No callback for GET response');
-        }
-    ) {
-        this.load('GET', endpoint, callback, options);
-    }
-
-    errorHandler(res) {
-        if (!res.ok) {
-            if (res.status === 401 || res.status === 404)
-                console.log(`Sorry, but there is ${res.status} error: ${res.statusText}`);
-            throw Error(res.statusText);
-        }
-
-        return res;
-    }
-
-    makeUrl(options, endpoint) {
-        const urlOptions = { ...this.options, ...options };
-        let url = `${this.baseLink}${endpoint}?`;
-
-        Object.keys(urlOptions).forEach((key) => {
-            url += `${key}=${urlOptions[key]}&`;
-        });
-
-        return url.slice(0, -1);
-    }
-
-    load(method, endpoint, callback, options = {}) {
-        fetch(this.makeUrl(options, endpoint), { method })
-            .then(this.errorHandler)
-            .then((res) => res.json())
-            .then((data) => callback(data))
-            .catch((err) => console.error(err));
-    }
+  private makeUrl(endpoint: Endpoint, options: QueryOptions): string {
+    const url: URL = new URL(endpoint, this.baseLink);
+    const parameters: QueryOptions = { ...this.options, ...options };
+    Object.entries(parameters).forEach(([key, value]: [string, string]): void => {
+      url.searchParams.set(key, value);
+    });
+    return url.href;
+  }
 }
 
 export default Loader;

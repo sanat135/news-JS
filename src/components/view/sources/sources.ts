@@ -1,21 +1,18 @@
 import './sources.css';
+import type { SourceButton } from '../../../types/api';
+import { cloneTemplate, requireElement } from '../../../utils/dom';
 
 class Sources {
-    draw(data) {
-        const fragment = document.createDocumentFragment();
-        const sourceItemTemp = document.querySelector('#sourceItemTemp');
-
-        data.forEach((item) => {
-            const sourceClone = sourceItemTemp.content.cloneNode(true);
-
-            sourceClone.querySelector('.source__item-name').textContent = item.name;
-            sourceClone.querySelector('.source__item').setAttribute('data-source-id', item.id);
-
-            fragment.append(sourceClone);
-        });
-
-        document.querySelector('.sources').append(fragment);
-    }
+  public draw(data: ReadonlyArray<SourceButton>): void {
+    const fragment: DocumentFragment = document.createDocumentFragment();
+    data.forEach((item: SourceButton): void => {
+      const clone: DocumentFragment = cloneTemplate('#sourceItemTemp');
+      requireElement('.source__item-name', HTMLElement, clone).textContent = item.name;
+      requireElement('.source__item', HTMLElement, clone).dataset.sourceId = item.id;
+      fragment.append(clone);
+    });
+    requireElement('.sources', HTMLElement).replaceChildren(fragment);
+  }
 }
 
 export default Sources;
